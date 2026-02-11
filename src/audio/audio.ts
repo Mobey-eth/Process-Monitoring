@@ -7,27 +7,62 @@ let alarmGain: GainNode | null = null;
 let alarmInterval: number | null = null;
 let _enabled = true;
 let _volume = 0.5;
+let _unlocked = false;
 
-function getCtx(): AudioContext {
+function getCtx(): AudioContext | null {
   if (!ctx) {
-    ctx = new AudioContext();
+    ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
     masterGain = ctx.createGain();
     masterGain.gain.value = _volume;
     masterGain.connect(ctx.destination);
   }
-  if (ctx.state === 'suspended') ctx.resume();
+  // If still suspended (mobile), don't try to play — it'll be silent anyway
+  if (ctx.state === 'suspended') {
+    ctx.resume();
+    return null;
+  }
   return ctx;
 }
 
-function getMaster(): GainNode {
-  getCtx();
+function getMaster(): GainNode | null {
+  const c = getCtx();
+  if (!c) return null;
   return masterGain!;
+}
+
+/**
+ * Must be called from a direct user gesture (tap/click) to unlock
+ * audio on mobile browsers. Call this on "Start Practice" tap.
+ */
+async function unlock(): Promise<void> {
+  if (_unlocked) return;
+  // Create context if needed
+  if (!ctx) {
+    ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    masterGain = ctx.createGain();
+    masterGain.gain.value = _volume;
+    masterGain.connect(ctx.destination);
+  }
+  // Resume must happen inside user gesture
+  if (ctx.state === 'suspended') {
+    await ctx.resume();
+  }
+  // Play a silent buffer to fully unlock on iOS
+  const buf = ctx.createBuffer(1, 1, 22050);
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  src.connect(ctx.destination);
+  src.start(0);
+  _unlocked = true;
 }
 
 /** Play a short tone */
 function playTone(freq: number, duration: number, type: OscillatorType = 'sine', vol = 0.3) {
   if (!_enabled) return;
   const c = getCtx();
+  if (!c) return;
+  const m = getMaster();
+  if (!m) return;
   const osc = c.createOscillator();
   const gain = c.createGain();
   osc.type = type;
@@ -35,12 +70,15 @@ function playTone(freq: number, duration: number, type: OscillatorType = 'sine',
   gain.gain.value = vol;
   gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + duration);
   osc.connect(gain);
-  gain.connect(getMaster());
+  gain.connect(m);
   osc.start();
   osc.stop(c.currentTime + duration);
 }
 
 export const audio = {
+  /** Call from a tap/click handler to unlock audio on mobile */
+  unlock,
+
   click() {
     playTone(800, 0.06, 'square', 0.15);
   },
@@ -52,8 +90,10 @@ export const audio = {
   success() {
     if (!_enabled) return;
     const c = getCtx();
+    if (!c) return;
+    const m = getMaster();
+    if (!m) return;
     const now = c.currentTime;
-    // C-E-G ascending chord
     [523, 659, 784].forEach((freq, i) => {
       const osc = c.createOscillator();
       const gain = c.createGain();
@@ -62,7 +102,7 @@ export const audio = {
       gain.gain.value = 0.2;
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3 + i * 0.15 + 0.3);
       osc.connect(gain);
-      gain.connect(getMaster());
+      gain.connect(m);
       osc.start(now + i * 0.15);
       osc.stop(now + i * 0.15 + 0.4);
     });
@@ -71,15 +111,17 @@ export const audio = {
   startAlarm() {
     if (!_enabled || alarmOsc) return;
     const c = getCtx();
+    if (!c) return;
+    const m = getMaster();
+    if (!m) return;
     alarmOsc = c.createOscillator();
     alarmGain = c.createGain();
     alarmOsc.type = 'square';
     alarmOsc.frequency.value = 440;
     alarmGain.gain.value = 0.15;
     alarmOsc.connect(alarmGain);
-    alarmGain.connect(getMaster());
+    alarmGain.connect(m);
     alarmOsc.start();
-    // Alternate between 440 and 880 Hz
     let high = false;
     alarmInterval = window.setInterval(() => {
       if (alarmOsc) {
@@ -91,7 +133,7 @@ export const audio = {
 
   stopAlarm() {
     if (alarmOsc) {
-      alarmOsc.stop();
+      try { alarmOsc.stop(); } catch (_) { /* already stopped */ }
       alarmOsc.disconnect();
       alarmOsc = null;
     }

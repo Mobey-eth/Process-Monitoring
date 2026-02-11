@@ -1,4 +1,5 @@
 import type { ScenarioConfig } from '../game/types';
+import { audio } from '../audio/audio';
 
 interface ScenarioIntroProps {
   scenario: ScenarioConfig;
@@ -7,6 +8,11 @@ interface ScenarioIntroProps {
 }
 
 export function ScenarioIntro({ scenario, onStart, onBack }: ScenarioIntroProps) {
+  const handleStart = () => {
+    // Unlock audio on this user gesture — required for mobile browsers
+    audio.unlock();
+    onStart();
+  };
   return (
     <div className="scenario-intro">
       <button className="scenario-intro__back" onClick={onBack}>
@@ -49,7 +55,7 @@ export function ScenarioIntro({ scenario, onStart, onBack }: ScenarioIntroProps)
         Time limit: <strong>{scenario.timeLimit} seconds</strong>
       </div>
 
-      <button className="scenario-intro__start-btn" onClick={onStart}>
+      <button className="scenario-intro__start-btn" onClick={handleStart}>
         Start Practice
       </button>
 
