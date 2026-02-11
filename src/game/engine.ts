@@ -34,12 +34,22 @@ export function createInitialState(scenario: ScenarioConfig): GameState {
        Math.random() * (scenario.surgeConfig.surgeWindowEnd - scenario.surgeConfig.surgeWindowStart)) * 1000
     : Infinity;
 
+  // Compute initial output from gauge values so they start in sync
+  const avgInit = scenario.gauges.reduce((s, g) => s + g.initialValue, 0) / scenario.gauges.length;
+  const avgBase = scenario.gauges.reduce((s, g) => s + g.baseline, 0) / scenario.gauges.length;
+  const avgAmber = scenario.gauges.reduce((s, g) => s + g.amberMax, 0) / scenario.gauges.length;
+  const dev = avgInit - avgBase;
+  const maxDev = avgAmber - avgBase;
+  const out = scenario.output;
+  const computedOutput = out.baseline + (dev / maxDev) * (out.threshold - out.baseline);
+  const initialOutput = clamp(computedOutput);
+
   return {
     systemOn: scenario.initialSystemOn,
     alarmActive: scenario.initialAlarmActive,
     gauges: scenario.gauges.map(gaugeFromConfig),
-    outputValue: scenario.output.initialValue,
-    outputHistory: [scenario.output.initialValue],
+    outputValue: initialOutput,
+    outputHistory: [initialOutput],
     timeRemaining: scenario.timeLimit * 1000,
     timeElapsed: 0,
     score: 100,
@@ -154,11 +164,23 @@ function tickState(state: GameState, dt: number, scenario: ScenarioConfig): Game
     };
   });
 
-  // Update output value
+  // Update output value — derived from gauge levels so they correspond
   const outCfg = scenario.output;
+  const avgGaugeVal = s.gauges.reduce((sum, g) => sum + g.value, 0) / s.gauges.length;
+  const avgBaseline = s.gauges.reduce((sum, g) => sum + g.baseline, 0) / s.gauges.length;
+  const avgAmberMax = s.gauges.reduce((sum, g) => sum + g.amberMax, 0) / s.gauges.length;
+  const deviation = avgGaugeVal - avgBaseline;
+  const maxDeviation = avgAmberMax - avgBaseline;
+  // Maps gauge deviation proportionally: gauges at amber ≈ output at threshold
+  const outputTarget = outCfg.baseline + (deviation / maxDeviation) * (outCfg.threshold - outCfg.baseline);
+
   if (s.systemOn) {
-    s.outputValue += outCfg.driftRate + (Math.random() - 0.5) * outCfg.noiseAmplitude;
+    // Smooth toward gauge-driven target + small upward drift bias
+    s.outputValue += (outputTarget - s.outputValue) * 0.08
+      + outCfg.driftRate * 0.3
+      + (Math.random() - 0.5) * outCfg.noiseAmplitude;
   } else {
+    // Decay toward baseline
     const diff = s.outputValue - outCfg.baseline;
     s.outputValue -= Math.sign(diff) * Math.min(Math.abs(diff), outCfg.decayRate);
     s.outputValue += (Math.random() - 0.5) * outCfg.noiseAmplitude * 0.3;
@@ -323,12 +345,9 @@ function handleReset(state: GameState): GameState {
     );
   }
 
-  // Check if all gauges are near green (allow small tolerance for noise flicker)
-  const RESET_TOLERANCE = 3;
-  const allNearGreen = state.gauges.every(
-    g => g.value <= g.greenMax + RESET_TOLERANCE
-  );
-  if (!allNearGreen) {
+  // Check if all gauges are in green (normal)
+  const allGreen = state.gauges.every(g => g.band === 'green');
+  if (!allGreen) {
     // Panic reset
     let s = logAction(state, 'RESET', 'Panic reset - values not normal', false);
     s.score -= 15;
