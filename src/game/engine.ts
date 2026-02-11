@@ -323,9 +323,12 @@ function handleReset(state: GameState): GameState {
     );
   }
 
-  // Check if all gauges are in green (normal)
-  const allGreen = state.gauges.every(g => g.band === 'green');
-  if (!allGreen) {
+  // Check if all gauges are near green (allow small tolerance for noise flicker)
+  const RESET_TOLERANCE = 3;
+  const allNearGreen = state.gauges.every(
+    g => g.value <= g.greenMax + RESET_TOLERANCE
+  );
+  if (!allNearGreen) {
     // Panic reset
     let s = logAction(state, 'RESET', 'Panic reset - values not normal', false);
     s.score -= 15;

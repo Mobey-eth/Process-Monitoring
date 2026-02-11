@@ -8,9 +8,12 @@ interface ScenarioIntroProps {
 }
 
 export function ScenarioIntro({ scenario, onStart, onBack }: ScenarioIntroProps) {
-  const handleStart = () => {
-    // Unlock audio on this user gesture — required for mobile browsers
-    audio.unlock();
+  const handleStart = async () => {
+    // Unlock audio on this user gesture — required for mobile browsers.
+    // Must await so the context is fully running before the game starts.
+    await audio.unlock();
+    // Play an audible beep to prime the audio pipeline on iOS/Android
+    audio.click();
     onStart();
   };
   return (
