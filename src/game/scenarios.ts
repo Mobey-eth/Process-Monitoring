@@ -53,7 +53,7 @@ export const scenarios: ScenarioConfig[] = [
       'Step 3: Press Reset to clear the alarm.',
       'Step 4: Turn the system back ON.',
     ],
-    timeLimit: 40,
+    timeLimit: 56,
     gauges: defaultGauges({
       co2: { initialValue: 48, driftRate: 0.28 },
       n2: { initialValue: 45, driftRate: 0.245 },
@@ -107,7 +107,7 @@ export const scenarios: ScenarioConfig[] = [
       'Step 4: Use Recenter when stable to fine-tune.',
       'Step 5: Keep all gauges in green until time runs out.',
     ],
-    timeLimit: 75,
+    timeLimit: 105,
     gauges: defaultGauges({
       co2: { initialValue: 50, driftRate: 0.385, noiseAmplitude: 1.2 },
       n2: { initialValue: 45, driftRate: 0.28, noiseAmplitude: 1.0 },
@@ -161,7 +161,7 @@ export const scenarios: ScenarioConfig[] = [
       'Step 3: Wait for gauges to reach green band.',
       'Step 4: Press Reset to clear the alarm.',
     ],
-    timeLimit: 50,
+    timeLimit: 70,
     gauges: defaultGauges({
       co2: { initialValue: 72, driftRate: 0.14, decayRate: 0.08 },
       n2: { initialValue: 55, driftRate: 0.126 },
@@ -216,7 +216,7 @@ export const scenarios: ScenarioConfig[] = [
       'Step 5: Press Reset, then turn ON.',
       'Step 6: Monitor remaining time.',
     ],
-    timeLimit: 60,
+    timeLimit: 84,
     gauges: defaultGauges({
       co2: { initialValue: 38, driftRate: 0.126 },
       n2: { initialValue: 36, driftRate: 0.098 },
