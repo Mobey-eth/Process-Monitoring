@@ -148,8 +148,8 @@ function tickState(state: GameState, dt: number, scenario: ScenarioConfig): Game
     if (s.systemOn) {
       // Drift up + noise
       newVal += cfg.driftRate + (Math.random() - 0.5) * cfg.noiseAmplitude;
-      // Random spike: ~0.3% chance per tick per gauge, +5 to +15 units
-      if (Math.random() < 0.003) {
+      // Random spike: ~0.2% chance per tick per gauge, +5 to +15 units
+      if (Math.random() < 0.002) {
         newVal += 5 + Math.random() * 10;
       }
     } else {
