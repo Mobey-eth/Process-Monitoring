@@ -83,6 +83,11 @@ export const audio = {
     playTone(800, 0.06, 'square', 0.15);
   },
 
+  /** Short warning beep when a gauge enters amber */
+  warning() {
+    playTone(600, 0.12, 'triangle', 0.2);
+  },
+
   error() {
     playTone(200, 0.25, 'sawtooth', 0.25);
   },

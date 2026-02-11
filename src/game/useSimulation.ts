@@ -18,8 +18,9 @@ export function useSimulation(scenario: ScenarioConfig) {
   const stateRef = useRef(state);
   stateRef.current = state;
 
-  // Track alarm for audio
+  // Track alarm and amber state for audio
   const prevAlarmRef = useRef(state.alarmActive);
+  const prevAmberSetRef = useRef<Set<string>>(new Set());
 
   // Game loop
   useEffect(() => {
@@ -39,6 +40,22 @@ export function useSimulation(scenario: ScenarioConfig) {
     }
     prevAlarmRef.current = state.alarmActive;
   }, [state.alarmActive]);
+
+  // Warning beep when a gauge first enters amber
+  useEffect(() => {
+    const prevAmber = prevAmberSetRef.current;
+    const currentAmber = new Set(
+      state.gauges.filter(g => g.band === 'amber' || g.band === 'red').map(g => g.id)
+    );
+    // Play warning if any gauge just entered amber/red that wasn't before
+    for (const id of currentAmber) {
+      if (!prevAmber.has(id)) {
+        audio.warning();
+        break; // one beep per tick is enough
+      }
+    }
+    prevAmberSetRef.current = currentAmber;
+  }, [state.gauges]);
 
   // Stop alarm on unmount
   useEffect(() => {
